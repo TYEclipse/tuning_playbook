@@ -1,4 +1,4 @@
-# Deep Learning Tuning Playbook
+# 深度学习调优手册
 
 _This is not an officially supported Google product._
 
@@ -10,12 +10,12 @@ _This is not an officially supported Google product._
 
 ## Table of Contents
 
-- [Who is this document for?](#who-is-this-document-for)
-- [Why a tuning playbook?](#why-a-tuning-playbook)
-- [Guide for starting a new project](#guide-for-starting-a-new-project)
-  - [Choosing the model architecture](#choosing-a-model-architecture)
-  - [Choosing the optimizer](#choosing-the-optimizer)
-  - [Choosing the batch size](#choosing-the-batch-size)
+- [Who is this document for? 这份文档适用于谁？](#who-is-this-document-for)
+- [Why a tuning playbook? 为什么需要一个调优手册？](#why-a-tuning-playbook)
+- [Guide for starting a new project 启动新项目指南](#guide-for-starting-a-new-project)
+  - [Choosing the model architecture 选择模型架构](#choosing-the-model-architecture)
+  - [Choosing the optimizer 选择优化器](#choosing-the-optimizer)
+  - [Choosing the batch size 选择批量大小](#choosing-the-batch-size)
   - [Choosing the initial configuration](#choosing-the-initial-configuration)
 - [A scientific approach to improving model performance](#a-scientific-approach-to-improving-model-performance)
   - [The incremental tuning strategy](#the-incremental-tuning-strategy)
@@ -43,215 +43,111 @@ _This is not an officially supported Google product._
 
 ## Who is this document for?
 
-This document is for engineers and researchers (both individuals and teams)
-interested in **maximizing the performance of deep learning models**. We assume
-basic knowledge of machine learning and deep learning concepts.
+**这份文档适用于谁？**
 
-Our emphasis is on the **process of hyperparameter tuning**. We touch on other
-aspects of deep learning training, such as pipeline implementation and
-optimization, but our treatment of those aspects is not intended to be complete.
+本文旨在为对**最大化深度学习模型**性能感兴趣的工程师和研究人员（无论是个人还是团队）提供帮助。我们假设读者具备机器学习和深度学习概念的基本知识。
 
-We assume the machine learning problem is a supervised learning problem or
-something that looks a lot like one (e.g. self-supervised). That said, some of
-the prescriptions in this document may also apply to other types of problems.
+我们重点关注**超参数调整的过程**，虽然我们涉及深度学习训练的其他方面，如流水线实施和优化，但我们并未打算详尽讨论这些方面。
+
+我们假设机器学习问题是一个监督学习问题，或者类似于监督学习的问题（例如自监督学习）。尽管如此，本文档中的一些建议也可能适用于其他类型的问题。
 
 ## Why a tuning playbook?
 
-Currently, there is an astonishing amount of toil and guesswork involved in
-actually getting deep neural networks to work well in practice. Even worse, the
-actual recipes people use to get good results with deep learning are rarely
-documented. Papers gloss over the process that led to their final results in
-order to present a cleaner story, and machine learning engineers working on
-commercial problems rarely have time to take a step back and generalize their
-process. Textbooks tend to eschew practical guidance and prioritize fundamental
-principles, even if their authors have the necessary experience in applied work
-to provide useful advice. When preparing to create this document, we couldn't
-find any comprehensive attempt to actually explain _how to get good results with
-deep learning_. Instead, we found snippets of advice in blog posts and on social
-media, tricks peeking out of the appendix of research papers, occasional case
-studies about one particular project or pipeline, and a lot of confusion. There
-is a vast gulf between the results achieved by deep learning experts and less
-skilled practitioners using superficially similar methods. At the same time,
-these very experts readily admit some of what they do might not be
-well-justified. As deep learning matures and has a larger impact on the world,
-the community needs more resources covering useful recipes, including all the
-practical details that can be so critical for obtaining good results.
+**为什么需要一个调优手册？**
 
-We are a team of five researchers and engineers who have worked in deep learning
-for many years, some of us since as early as 2006. We have applied deep learning
-to problems in everything from speech recognition to astronomy, and learned a
-lot along the way. This document grew out of our own experience training neural
-networks, teaching new machine learning engineers, and advising our colleagues
-on the practice of deep learning. Although it has been gratifying to see deep
-learning go from a machine learning approach practiced by a handful of academic
-labs to a technology powering products used by billions of people, deep learning
-is still in its infancy as an engineering discipline and we hope this document
-encourages others to help systematize the field's experimental protocols.
+目前，在实际将深度神经网络有效地运作中，涉及到了令人惊讶的繁琐和猜测。更糟糕的是，人们用于在深度学习中获得良好结果的实际方法很少有记录。论文通常会忽略导致最终结果的过程，以呈现一个更干净的故事，而在处理商业问题的机器学习工程师很少有时间退后一步，总结归纳他们的过程。
+教科书往往回避实用指导，优先考虑基本原理，即使它们的作者在应用工作中具备提供有用建议所需的经验。在准备创建这份文档时，我们并没有找到任何全面的尝试来真正解释“如何在深度学习中取得好的结果”。相反，我们在博客文章和社交媒体上找到了一些建议片段，从研究论文的附录中找到了一些技巧，偶尔有关于某个特定项目或流程的案例研究，以及许多混乱的信息。深度学习专家和使用表面上相似方法的技能较低的从业者之间存在巨大的差距。
+同时，这些专家也坦承，他们所做的一些事情可能并没有很好的理由。随着深度学习的成熟和在世界上产生更大影响，社区需要更多覆盖有用方法的资源，包括所有对获取良好结果至关重要的实际细节。
 
-This document came about as we tried to crystalize our own approach to deep
-learning and thus it represents the opinions of the authors at the time of
-writing, not any sort of objective truth. Our own struggles with hyperparameter
-tuning made it a particular focus of our guidance, but we also cover other
-important issues we have encountered in our work (or seen go wrong). Our
-intention is for this work to be a living document that grows and evolves as our
-beliefs change. For example, the material on debugging and mitigating training
-failures would not have been possible for us to write two years ago since it is
-based on recent results and ongoing investigations. Inevitably, some of our
-advice will need to be updated to account for new results and improved
-workflows. We do not know the _optimal_ deep learning recipe, but until the
-community starts writing down and debating different procedures, we cannot hope
-to find it. To that end, we would encourage readers who find issues with our
-advice to produce alternative recommendations, along with convincing evidence,
-so we can update the playbook. We would also love to see alternative guides and
-playbooks that might have different recommendations so we can work towards best
-practices as a community. Finally, any sections marked with a 🤖 emoji are places
-we would like to do more research. Only after trying to write this playbook did
-it become completely clear how many interesting and neglected research questions
-can be found in the deep learning practitioner's workflow.
+我们是一个由五名研究人员和工程师组成的团队，多年来一直从事深度学习工作，其中一些人甚至从 2006 年就开始。我们将深度学习应用于从语音识别到天文学的各种问题，并在这一过程中积累了丰富的经验。
+这份文档源于我们自己在训练神经网络、指导新的机器学习工程师以及就深度学习实践向同事提供建议的经验。尽管看到深度学习从一种由少数学术实验室实践的机器学习方法，发展成为支持数十亿人使用的产品的技术，这让我们感到满足，但深度学习作为一门工程学科仍处于初级阶段。我们希望这份文档能够鼓励其他人帮助系统化该领域的实验性协议。
+
+这份文档是我们试图梳理自己对深度学习方法的理解时产生的，因此它代表了作者在撰写时的观点，而不是任何客观真理。我们在超参数调整方面的困扰使其成为我们指导的一个特别关注点，但我们也涵盖了在工作中遇到的其他重要问题（或者看到过出现问题的情况）。我们的意图是让这份工作成为一个不断发展和演变的活态文档，以反映我们信仰的变化。例如，有关调试和缓解训练失败的材料在两年前对我们来说是不可能写出的，因为它是基于最近的研究和正在进行的调查。
+不可避免地，我们的一些建议需要根据新的结果和改进的工作流程进行更新。我们并不知道深度学习的“最佳”配方，但在社区开始记录和讨论不同的程序之前，我们无法指望找到它。为此，我们鼓励读者如果对我们的建议有异议，可以提出替代性的建议，并附上有说服力的证据，以便我们更新这份指南。我们也希望看到其他指南和手册，它们可能提供不同的建议，以便我们作为一个社区朝着最佳实践努力。最后，任何标有 🤖 emoji 的部分都是我们希望进行更多研究的地方。
+只有在尝试编写这份手册之后，才变得完全清晰，深度学习实践者的工作流程中有多少有趣且被忽视的研究问题。
 
 ## Guide for starting a new project
 
-Many of the decisions we make over the course of tuning can be made once at the
-beginning of a project and only occasionally revisited when circumstances
-change.
+**_启动新项目指南_**
 
-Our guidance below makes the following assumptions:
+在调优过程中，我们做出的许多决策可以在项目开始时进行一次性制定，只有在情况发生变化时偶尔进行重新审视。
 
-- Enough of the essential work of problem formulation, data cleaning, etc. has
-  already been done that spending time on the model architecture and training
-  configuration makes sense.
-- There is already a pipeline set up that does training and evaluation, and it
-  is easy to execute training and prediction jobs for various models of
-  interest.
-- The appropriate metrics have been selected and implemented. These should be
-  as representative as possible of what would be measured in the deployed
-  environment.
+以下是我们的指导，基于以下假设
+
+- 问题阐述、数据清理等基本工作已经做得足够充分，因此花时间在模型架构和训练配置上是有意义的。
+- 已经建立了一个可以进行训练和评估的流程，对于感兴趣的各种模型，轻松执行训练和预测任务。
+- 已经选择并实施了适当的度量标准。这些度量标准应该尽可能地代表在实际部署环境中进行测量的内容。
 
 ### Choosing the model architecture
 
-**_Summary:_** _When starting a new project, try to reuse a model that already
-works._
+**_选择模型架构_**
 
-- Choose a well established, commonly used model architecture to get working
-  first. It is always possible to build a custom model later.
-- Model architectures typically have various hyperparameters that determine
-  the model's size and other details (e.g. number of layers, layer width, type
-  of activation function).
-  - Thus, choosing the architecture really means choosing a family of
-    different models (one for each setting of the model hyperparameters).
-  - We will consider the problem of choosing the model hyperparameters in
-    [Choosing the initial configuration](#choosing-the-initial-configuration)
-    and
-    [A scientific approach to improving model performance](#a-scientific-approach-to-improving-model-performance).
-- When possible, try to find a paper that tackles something as close as
-  possible to the problem at hand and reproduce that model as a starting
-  point.
+**_概要：_** _在开始新项目时，尽量重用已经有效的模型。_
+
+- 首先选择一个被广泛认可和常用的模型架构，以确保迅速获得可工作的模型。随后始终有可能构建定制模型。
+- 模型架构通常具有各种超参数，这些参数决定了模型的大小和其他细节（例如层数、层宽度、激活函数类型等）。
+  - 因此，选择架构实际上意味着选择一个不同模型的系列（每个模型超参数设置对应一个模型）。
+  - 我们将在[选择初始配置](#choosing-the-initial-configuration)和[科学方法改进模型性能](#a-scientific-approach-to-improving-model-performance)中考虑选择模型超参数的问题。
+- 在可能的情况下，尽量找到一篇与手头问题尽可能接近的论文，并以此模型作为起点进行复现。
 
 ### Choosing the optimizer
 
-**_Summary:_** _Start with the most popular optimizer for the type of problem at
-hand._
+**_选择优化器_**
 
-- No optimizer is the "best" across all types of machine learning problems and
-  model architectures. Even just
-  [comparing the performance of optimizers is a difficult task](https://arxiv.org/abs/1910.05446).
-  🤖
-- We recommend sticking with well-established, popular optimizers, especially
-  when starting a new project.
-  - Ideally, choose the most popular optimizer used for the same type of
-    problem.
-- Be prepared to give attention to **\*\*\***all\***\*\*** hyperparameters of the
-  chosen optimizer.
-  - Optimizers with more hyperparameters may require more tuning effort to
-    find the best configuration.
-  - This is particularly relevant in the beginning stages of a project when
-    we are trying to find the best values of various other hyperparameters
-    (e.g. architecture hyperparameters) while treating optimizer
-    hyperparameters as
-    [nuisance parameters](#identifying-scientific-nuisance-and-fixed-hyperparameters).
-  - It may be preferable to start with a simpler optimizer (e.g. SGD with
-    fixed momentum or Adam with fixed $\epsilon$, $\beta_{1}$, and
-    $\beta_{2}$) in the initial stages of the project and switch to a more
-    general optimizer later.
-- Well-established optimizers that we like include (but are not limited to):
-  - [SGD with momentum](#what-are-the-update-rules-for-all-the-popular-optimization-algorithms)
-    (we like the Nesterov variant)
-  - [Adam and NAdam](#what-are-the-update-rules-for-all-the-popular-optimization-algorithms),
-    which are more general than SGD with momentum. Note that Adam has 4
-    tunable hyperparameters
-    [and they can all matter](https://arxiv.org/abs/1910.05446)!
-    - See
-      [How should Adam's hyperparameters be tuned?](#how-should-adams-hyperparameters-be-tuned)
+**_概要：_** _根据手头问题的类型，首先选择最流行的优化器。_
+
+- 没有一种优化器适用于所有类型的机器学习问题和模型架构。即便是[比较优化器性能也是一项困难的任务](https://arxiv.org/abs/1910.05446)。🤖
+- 我们建议在开始新项目时，坚持使用经验丰富、流行的优化器。
+  - 理想情况下，选择用于相同类型问题的最流行的优化器。
+- 准备好关注所选择优化器的 **\*\*\*** 所有 **\*\*\*** 超参数。
+  - 具有更多超参数的优化器可能需要更多调整工作，以找到最佳配置。
+  - 在项目的初期阶段，当我们试图找到各种其他超参数的最佳值时（例如架构超参数），尤其需要关注此问题，同时将优化器超参数视为[无关参数](#identifying-scientific-nuisance-and-fixed-hyperparameters).
+  - 在项目初期，使用一个更简单的优化器（例如具有固定动量的 SGD 或具有固定 $\epsilon$、$\beta_{1}$ 和 $\beta_{2}$ 的 Adam）可能更为可取，随后再切换到更通用的优化器。
+- 我们喜欢的一些经验丰富的优化器包括（但不限于）：
+  - [带有动量的 SGD](#what-are-the-update-rules-for-all-the-popular-optimization-algorithms)（我们喜欢 Nesterov 的变体）
+  - [Adam 和 NAdam](#what-are-the-update-rules-for-all-the-popular-optimization-algorithms)，比带有动量的 SGD 更通用。请注意，Adam 有 4 个可调超参数，[它们都可能很重要](https://arxiv.org/abs/1910.05446)！
+    - 请参见[Adam 的超参数应该如何调整？](#how-should-adams-hyperparameters-be-tuned)
 
 ### Choosing the batch size
 
-**_Summary:_** _The batch size governs the training speed and shouldn't be used
-to directly tune the validation set performance. Often, the ideal batch size
-will be the largest batch size supported by the available hardware._
+**_选择批量大小_**
 
-- The batch size is a key factor in determining the _training time_ and
-  _computing resource consumption_.
-- Increasing the batch size will often reduce the training time. This can be
-  highly beneficial because it, e.g.:
-  - Allows hyperparameters to be tuned more thoroughly within a fixed time
-    interval, potentially resulting in a better final model.
-  - Reduces the latency of the development cycle, allowing new ideas to be
-    tested more frequently.
-- Increasing the batch size may either decrease, increase, or not change the
-  resource consumption.
-- The batch size should _not be_ treated as a tunable hyperparameter for
-  validation set performance.
-  - As long as all hyperparameters are well-tuned (especially the learning
-    rate and regularization hyperparameters) and the number of training
-    steps is sufficient, the same final performance should be attainable
-    using any batch size (see
-    [Shallue et al. 2018](https://arxiv.org/abs/1811.03600)).
-  - Please see [Why shouldn't the batch size be tuned to directly improve
-    validation set
-    performance?](#why-shouldnt-the-batch-size-be-tuned-to-directly-improve-validation-set-performance)
+**_概要：_** _批量大小控制着训练速度，不应直接用于调整验证集的性能。通常，理想的批量大小将是硬件支持的最大批量大小。_
+
+- 批量大小是确定 _训练时间_ 和 _计算资源消耗_ 的关键因素。
+- 增加批量大小通常会减少训练时间。这通常是非常有益的，因为它，例如：
+  - 在固定的时间间隔内，允许更全面地调整超参数，有可能得到更好的最终模型。
+  - 减少开发周期的延迟，使得新的想法能够更频繁地进行测试。
+- 增加批量大小可能会导致资源消耗减少、增加或不变。
+- 批量大小 _不应被_ 视为可调整的超参数，用于验证集性能。
+  - 只要所有的超参数都被很好地调整（尤其是学习率和正则化超参数），并且训练步数足够多，使用任何批量大小都应该能够达到相同的最终性能（参见[Shallue et al. 2018](https://arxiv.org/abs/1811.03600)）。
+  - 请参阅[为什么不应该调整批量大小以直接提高验证集性能？](#why-shouldnt-the-batch-size-be-tuned-to-directly-improve-validation-set-performance)
 
 #### Determining the feasible batch sizes and estimating training throughput
 
-<details><summary><em>[Click to expand]</em></summary>
+**_确定可行的批量大小和估计训练吞吐量_**
+
+<details><summary><em>[点击展开]</em></summary>
 
 <br>
 
-- For a given model and optimizer, there will typically be a range of batch
-  sizes supported by the available hardware. The limiting factor is usually
-  accelerator memory.
-- Unfortunately, it can be difficult to calculate which batch sizes will fit
-  in memory without running, or at least compiling, the full training program.
-- The easiest solution is usually to run training jobs at different batch
-  sizes (e.g. increasing powers of 2) for a small number of steps until one of
-  the jobs exceeds the available memory.
-- For each batch size, we should train for long enough to get a reliable
-  estimate of the _training throughput_
+- 对于给定的模型和优化器，通常会有一系列受到可用硬件支持的批量大小。限制因素通常是加速器内存。
+- 不幸的是，在不运行或至少编译完整个训练程序的情况下，很难计算哪些批量大小将适应内存。
+- 最简单的解决方案通常是以不同的批量大小运行训练作业（例如，增加的 2 的幂），直到其中一个作业超出可用内存。
+- 对于每个批量大小，我们应该训练足够长的时间，以获得 _训练吞吐量_ 的可靠估算。
 
-<p align="center">training throughput = (# examples processed per second)</p>
+<p align="center">训练吞吐量 =（每秒处理的示例数）</p>
 
-<p align="center">or, equivalently, the <em>time per step</em>.</p>
+<p align="center">或者等价地，<em>每步的时间</em>。</p>
 
-<p align="center">time per step = (batch size) / (training throughput)</p>
+<p align="center">每步的时间 =（批量大小）/（训练吞吐量）</p>
 
-- When the accelerators aren't yet saturated, if the batch size doubles, the
-  training throughput should also double (or at least nearly double).
-  Equivalently, the time per step should be constant (or at least nearly
-  constant) as the batch size increases.
-- If this is not the case then the training pipeline has a bottleneck such as
-  I/O or synchronization between compute nodes. This may be worth diagnosing
-  and correcting before proceeding.
-- If the training throughput increases only up to some maximum batch size,
-  then we should only consider batch sizes up to that maximum batch size, even
-  if a larger batch size is supported by the hardware.
-  - All benefits of using a larger batch size assume the training throughput
-    increases. If it doesn't, fix the bottleneck or use the smaller batch
-    size.
-  - **Gradient accumulation** simulates a larger batch size than the
-    hardware can support and therefore does not provide any throughput
-    benefits. It should generally be avoided in applied work.
-- These steps may need to be repeated every time the model or optimizer is
-  changed (e.g. a different model architecture may allow a larger batch size
-  to fit in memory).
+- 当加速器尚未饱和时，如果批量大小翻倍，训练吞吐量也应该翻倍（或者至少几乎翻倍）。等价地，随着批量大小的增加，每步的时间应该保持不变（或者至少几乎不变）。
+- 如果不是这种情况，那么训练流水线可能存在瓶颈，比如 I/O 或计算节点之间的同步。在继续之前，可能需要诊断和纠正这个问题。
+- 如果训练吞吐量只增加到某个最大批量大小，那么我们应该只考虑最大批量大小，即使硬件支持更大的批量大小。
+  - 使用更大批量大小的所有好处都基于训练吞吐量的增加。如果没有增加，修复瓶颈或使用较小的批量大小。
+  - **梯度累积** 模拟的是比硬件支持更大的批量大小，因此并不提供任何吞吐量的好处。在应用工作中通常应该避免使用。
+- 这些步骤可能需要在每次更改模型或优化器时重复（例如，不同的模型架构可能允许更大的批量大小适应内存）。
 
 </details>
 

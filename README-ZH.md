@@ -102,7 +102,7 @@ _This is not an officially supported Google product._
 - 准备好关注所选择优化器的 **\*\*\*** 所有 **\*\*\*** 超参数。
   - 具有更多超参数的优化器可能需要更多调整工作，以找到最佳配置。
   - 在项目的初期阶段，当我们试图找到各种其他超参数的最佳值时（例如架构超参数），尤其需要关注此问题，同时将优化器超参数视为[无关参数](#identifying-scientific-nuisance-and-fixed-hyperparameters).
-  - 在项目初期，使用一个更简单的优化器（例如具有固定动量的 SGD 或具有固定 $\epsilon$、$\beta_{1}$ 和 $\beta_{2}$ 的 Adam）可能更为可取，随后再切换到更通用的优化器。
+  - 在项目初期，使用一个更简单的优化器（例如具有固定动量的 SGD 或具有固定 $\epsilon$ 、 $\beta_{1}$ 和 $\beta_{2}$ 的 Adam）可能更为可取，随后再切换到更通用的优化器。
 - 我们喜欢的一些经验丰富的优化器包括（但不限于）：
   - [带有动量的 SGD](#what-are-the-update-rules-for-all-the-popular-optimization-algorithms)（我们喜欢 Nesterov 的变体）
   - [Adam 和 NAdam](#what-are-the-update-rules-for-all-the-popular-optimization-algorithms)，比带有动量的 SGD 更通用。请注意，Adam 有 4 个可调超参数，[它们都可能很重要](https://arxiv.org/abs/1910.05446)！

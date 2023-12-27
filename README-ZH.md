@@ -16,9 +16,9 @@ _This is not an officially supported Google product._
   - [Choosing the model architecture 选择模型架构](#choosing-the-model-architecture)
   - [Choosing the optimizer 选择优化器](#choosing-the-optimizer)
   - [Choosing the batch size 选择批量大小](#choosing-the-batch-size)
-  - [Choosing the initial configuration](#choosing-the-initial-configuration)
-- [A scientific approach to improving model performance](#a-scientific-approach-to-improving-model-performance)
-  - [The incremental tuning strategy](#the-incremental-tuning-strategy)
+  - [Choosing the initial configuration 选择初始配置](#choosing-the-initial-configuration)
+- [A scientific approach to improving model performance 提升模型性能的科学方法](#a-scientific-approach-to-improving-model-performance)
+  - [The incremental tuning strategy 渐进调整策略](#the-incremental-tuning-strategy)
   - [Exploration vs exploitation](#exploration-vs-exploitation)
   - [Choosing the goal for the next round of experiments](#choosing-the-goal-for-the-next-round-of-experiments)
   - [Designing the next round of experiments](#Designing-the-next-round-of-experiments)
@@ -153,224 +153,130 @@ _This is not an officially supported Google product._
 
 #### Choosing the batch size to minimize training time
 
-<details><summary><em>[Click to expand]</em></summary>
+**_选择批量大小以最小化训练时间_**
+
+<details><summary><em>[点击展开]</em></summary>
 
 <br>
 
-<p align="center">Training time = (time per step) x (total number of steps)</p>
+<p align="center">训练时间 = （每步的时间） x （总步数）</p>
 
-- We can often consider the time per step to be approximately constant for all
-  feasible batch sizes. This is true when there is no overhead from parallel
-  computations and all training bottlenecks have been diagnosed and corrected
-  (see the
-  [previous section](#determining-the-feasible-batch-sizes-and-estimating-training-throughput)
-  for how to identify training bottlenecks). In practice, there is usually at
-  least some overhead from increasing the batch size.
-- As the batch size increases, the total number of steps needed to reach a
-  fixed performance goal typically decreases (provided all relevant
-  hyperparameters are re-tuned when the batch size is changed;
-  [Shallue et al. 2018](https://arxiv.org/abs/1811.03600)).
-  - E.g. Doubling the batch size might halve the total number of steps
-    required. This is called **perfect scaling**.
-  - Perfect scaling holds for all batch sizes up to a critical batch size,
-    beyond which one achieves diminishing returns.
-  - Eventually, increasing the batch size no longer reduces the number of
-    training steps (but never increases it).
-- Therefore, the batch size that minimizes training time is usually the
-  largest batch size that still provides a reduction in the number of training
-  steps required.
-  - This batch size depends on the dataset, model, and optimizer, and it is
-    an open problem how to calculate it other than finding it experimentally
-    for every new problem. 🤖
-  - When comparing batch sizes, beware the distinction between an example
-    budget/[epoch](https://developers.google.com/machine-learning/glossary#epoch)
-    budget (running all experiments while fixing the number of training
-    example presentations) and a step budget (running all experiments with
-    the number of training steps fixed).
-    - Comparing batch sizes with an epoch budget only probes the perfect
-      scaling regime, even when larger batch sizes might still provide a
-      meaningful speedup by reducing the number of training steps
-      required.
-  - Often, the largest batch size supported by the available hardware will
-    be smaller than the critical batch size. Therefore, a good rule of thumb
-    (without running any experiments) is to use the largest batch size
-    possible.
-- There is no point in using a larger batch size if it ends up increasing the
-  training time.
+- 我们通常可以认为每步的时间对于所有可行的批量大小来说近似是恒定的。当没有并行计算的额外开销，并且所有训练瓶颈都已被诊断和纠正时，这是正确的（参见[前一节](#determining-the-feasible-batch-sizes-and-estimating-training-throughput)关于如何识别训练瓶颈的内容）。实际上，通常增加批量大小会带来一些额外的开销。
+- 随着批量大小的增加，通常需要达到固定性能目标的总步数会减少（前提是在更改批量大小时重新调整所有相关的超参数；[Shallue et al. 2018](https://arxiv.org/abs/1811.03600)）。
+  - 例如，将批量大小翻倍可能会将所需的总步数减半。这被称为**完美扩展**。
+  - 完美扩展在批量大小达到临界批量大小之前都成立，此后会获得递减的回报。
+  - 最终，增加批量大小不再减少训练步数（但永远不会增加）。
+- 因此，最小化训练时间的批量大小通常是仍然减少所需训练步数的最大批量大小。
+  - 这个批量大小取决于数据集、模型和优化器，如何计算它是一个尚未解决的问题，除非在每个新问题上进行实验性的发现。🤖
+  - 在比较批量大小时，要注意示例预算/[迭代](https://developers.google.com/machine-learning/glossary#epoch)预算（在固定训练示例展示次数的同时运行所有实验）与步骤预算（在固定训练步骤数的同时运行所有实验）之间的区别。
+    - 通过迭代预算比较批量大小只探究了完美扩展的范围，即使更大的批量大小可能通过减少所需的训练步骤而提供有意义的加速。
+  - 通常，可用硬件支持的最大批量大小可能会小于临界批量大小。因此，一个好的经验法则（在没有运行任何实验的情况下）是使用可能的最大批量大小。
+- 如果使用更大的批量大小最终导致训练时间增加，那么使用更大的批量大小就没有意义。
 
 </details>
 
 #### Choosing the batch size to minimize resource consumption
 
-<details><summary><em>[Click to expand]</em></summary>
+**_选择批量大小以最小化资源消耗_**
+
+<details><summary><em>[点击展开]</em></summary>
 
 <br>
 
-- There are two types of resource costs associated with increasing the batch
-  size:
-  1.  _Upfront costs_, e.g. purchasing new hardware or rewriting the training
-      pipeline to implement multi-GPU / multi-TPU training.
-  2.  _Usage costs_, e.g. billing against the team's resource budgets, billing
-      from a cloud provider, electricity / maintenance costs.
-- If there are significant upfront costs to increasing the batch size, it
-  might be better to defer increasing the batch size until the project has
-  matured and it is easier to assess the cost-benefit tradeoff. Implementing
-  multi-host parallel training programs can introduce
-  [bugs](#considerations-for-multi-host-pipelines) and
-  [subtle issues](#batch-normalization-implementation-details) so it is
-  probably better to start off with a simpler pipeline anyway. (On the other
-  hand, a large speedup in training time might be very beneficial early in the
-  process when a lot of tuning experiments are needed).
-- We refer to the total usage cost (which may include multiple different kinds
-  of costs) as the "resource consumption". We can break down the resource
-  consumption into the following components:
+- 增加批量大小涉及到两种类型的资源成本：
+  1.  _前期成本_，例如购买新硬件或重写训练流水线以实现多 GPU / 多 TPU 训练。
+  2.  _使用成本_，例如计费与团队的资源预算相抵，来自云服务提供商的计费，以及电力/维护成本。
+- 如果增加批量大小存在显著的前期成本，可能最好推迟增加批量大小，直到项目成熟，更容易评估成本效益的权衡。实施多主机并行训练程序可能引入[错误](#considerations-for-multi-host-pipelines)和[细微问题](#batch-normalization-implementation-details)，因此可能最好一开始就使用更简单的流水线。（另一方面，在需要大量调整实验的早期阶段，训练时间的大幅提速可能是非常有益的。）
+- 我们将总使用成本（可能包括多种不同类型的成本）称为 "资源消耗"。我们可以将资源消耗分解为以下组成部分：
 
-<p align="center">Resource consumption = (resource consumption per step) x (total number of steps)</p>
+<p align="center">资源消耗 =（每步的资源消耗） x（总步数）</p>
 
-- Increasing the batch size usually allows us to
-  [reduce the total number of steps](#choosing-the-batch-size-to-minimize-training-time).
-  Whether the resource consumption increases or decreases will depend on how
-  the consumption per step changes.
-  - Increasing the batch size might _decrease_ the resource consumption. For
-    example, if each step with the larger batch size can be run on the same
-    hardware as the smaller batch size (with only a small increase in time
-    per step), then any increase in the resource consumption per step might
-    be outweighed by the decrease in the number of steps.
-  - Increasing the batch size might _not change_ the resource consumption.
-    For example, if doubling the batch size halves the number of steps
-    required and doubles the number of GPUs used, the total consumption (in
-    terms of GPU-hours) will not change.
-  - Increasing the batch size might _increase_ the resource consumption. For
-    example, if increasing the batch size requires upgraded hardware, the
-    increase in consumption per step might outweigh the reduction in the
-    number of steps.
+- 增加批量大小通常允许我们[减少总步数](#choosing-the-batch-size-to-minimize-training-time)。资源消耗是增加还是减少将取决于每步消耗的变化。
+  - 增加批量大小可能会 _减少_ 资源消耗。例如，如果较大批量大小的每个步骤可以在与较小批量大小相同的硬件上运行（每步只增加一点时间），那么每步资源消耗的增加可能会被步骤数量的减少所抵消。
+  - 增加批量大小可能 _不会改变_ 资源消耗。例如，如果将批量大小翻倍会将所需步骤数量减半并且使用的 GPU 数量翻倍，那么总的消耗（以 GPU 小时为单位）将保持不变。
+  - 增加批量大小可能会 _增加_ 资源消耗。例如，如果增加批量大小需要升级硬件，每步消耗的增加可能会超过减少的步骤数量。
 
 </details>
 
 #### Changing the batch size requires re-tuning most hyperparameters
 
-<details><summary><em>[Click to expand]</em></summary>
+**_更改批量大小需要重新调整大多数超参数_**
+
+<details><summary><em>[点击展开]</em></summary>
 
 <br>
 
-- The optimal values of most hyperparameters are sensitive to the batch size.
-  Therefore, changing the batch size typically requires starting the tuning
-  process all over again.
-- The hyperparameters that interact most strongly with the batch size, and therefore are most important to tune separately for each batch size, are the optimizer hyperparameters (e.g. learning rate, momentum) and the regularization hyperparameters.
-- Keep this in mind when choosing the batch size at the start of a project. If
-  you need to switch to a different batch size later on, it might be
-  difficult, time consuming, and expensive to re-tune everything for the new
-  batch size.
+- 大多数超参数的最佳值对批量大小敏感。因此，更改批量大小通常需要重新开始调整过程。
+- 与批量大小交互作用最强、因此对每个批量大小分别进行调整最为重要的超参数是优化器超参数（例如学习率、动量）和正则化超参数。
+- 在项目开始时选择批量大小时要记住这一点。如果以后需要切换到不同的批量大小，重新为新的批量大小调整所有参数可能会困难、耗时且昂贵。
 
 </details>
 
 #### How batch norm interacts with the batch size
 
+**_批量归一化与批量大小的交互_**
+
 <details><summary><em>[Click to expand]</em></summary>
 
 <br>
 
-- Batch norm is complicated and, in general, should use a different batch size
-  than the gradient computation to compute statistics. See the
-  [batch norm section](#batch-normalization-implementation-details) for a
-  detailed discussion.
+- 批量归一化是复杂的，通常应该使用与梯度计算不同的批量大小来计算统计信息。有关详细讨论，请参见[批量归一化部分](#batch-normalization-implementation-details)。
 
 </details>
 
 ### Choosing the initial configuration
 
-- Before beginning hyperparameter tuning we must determine the starting point.
-  This includes specifying (1) the model configuration (e.g. number of
-  layers), (2) the optimizer hyperparameters (e.g. learning rate), and (3) the
-  number of training steps.
-- Determining this initial configuration will require some manually configured
-  training runs and trial-and-error.
-- Our guiding principle is to find a simple, relatively fast, relatively
-  low-resource-consumption configuration that obtains a "reasonable" result.
-  - "Simple" means avoiding bells and whistles wherever possible; these can
-    always be added later. Even if bells and whistles prove helpful down the
-    road, adding them in the initial configuration risks wasting time tuning
-    unhelpful features and/or baking in unnecessary complications.
-    - For example, start with a constant learning rate before adding fancy
-      decay schedules.
-  - Choosing an initial configuration that is fast and consumes minimal
-    resources will make hyperparameter tuning much more efficient.
-    - For example, start with a smaller model.
-  - "Reasonable" performance depends on the problem, but at minimum means
-    that the trained model performs much better than random chance on the
-    validation set (although it might be bad enough to not be worth
-    deploying).
-- Choosing the number of training steps involves balancing the following
-  tension:
-  - On the one hand, training for more steps can improve performance and
-    makes hyperparameter tuning easier (see
-    [Shallue et al. 2018](https://arxiv.org/abs/1811.03600)).
-  - On the other hand, training for fewer steps means that each training run
-    is faster and uses fewer resources, boosting tuning efficiency by
-    reducing the time between cycles and allowing more experiments to be run
-    in parallel. Moreover, if an unnecessarily large step budget is chosen
-    initially, it might be hard to change it down the road, e.g. once the
-    learning rate schedule is tuned for that number of steps.
+**_选择初始配置_**
+
+- 在开始超参数调整之前，我们必须确定起点。这包括指定（1）模型配置（例如，层数），（2）优化器超参数（例如，学习率），以及（3）训练步数。
+- 确定这个初始配置将需要一些手动配置的训练运行和反复尝试。
+- 我们的指导原则是找到一个简单、相对快速、相对低资源消耗的配置，以获得一个“合理”的结果。
+  - “简单”意味着尽可能避免炫耀，这些可以随时添加。即使炫耀在后面证明有帮助，将它们添加到初始配置中可能会浪费时间调整无用的特性和/或引入不必要的复杂性。
+    - 例如，在添加炫耀的衰减计划之前，从一个恒定的学习率开始。
+  - 选择一个初始配置，既快速又消耗最少资源，将使超参数调整更加高效。
+    - 例如，从一个较小的模型开始。
+  - “合理”的性能取决于问题，但至少意味着训练后的模型在验证集上比随机机会表现得更好（尽管可能不足以值得部署）。
+- 选择训练步数涉及平衡以下张力：
+  - 一方面，更多的步数训练可以提高性能，并使超参数调整更容易（参见[Shallue et al. 2018](https://arxiv.org/abs/1811.03600)）。
+  - 另一方面，较少的步数训练意味着每次训练运行更快，使用更少的资源，通过减少周期之间的时间并允许更多实验并行运行，提高调整效率。此外，如果最初选择了一个不必要大的步骤预算，可能很难在后期更改，例如，一旦学习率计划为那个步数调整。
 
 ## A scientific approach to improving model performance
 
-For the purposes of this document, the ultimate goal of machine learning
-development is to maximize the utility of the deployed model. Even though many
-aspects of the development process differ between applications (e.g. length of
-time, available computing resources, type of model), we can typically use the
-same basic steps and principles on any problem.
+**_提升模型性能的科学方法_**
 
-Our guidance below makes the following assumptions:
+在本文档中，机器学习开发的终极目标是最大化部署模型的效用。尽管开发过程的许多方面在不同应用之间可能存在差异（例如，时间长度、可用计算资源、模型类型），但我们通常可以在任何问题上使用相同的基本步骤和原则。
 
-- There is already a fully-running training pipeline along with a
-  configuration that obtains a reasonable result.
-- There are enough computational resources available to conduct meaningful
-  tuning experiments and run at least several training jobs in parallel.
+我们的指导基于以下假设：
+
+- 已经有一个完全运行的训练流程，以及一个能够获得合理结果的配置。
+- 有足够的计算资源进行有意义的调整实验，并可以并行运行至少几个训练作业。
 
 ### The incremental tuning strategy
 
-**_Summary:_** _Start with a simple configuration and incrementally make
-improvements while building up insight into the problem. Make sure that any
-improvement is based on strong evidence to avoid adding unnecessary complexity._
+**_渐进调整策略_**
 
-- Our ultimate goal is to find a configuration that maximizes the performance
-  of our model.
-  - In some cases, our goal will be to maximize how much we can improve the
-    model by a fixed deadline (e.g. submitting to a competition).
-  - In other cases, we want to keep improving the model indefinitely (e.g.
-    continually improving a model used in production).
-- In principle, we could maximize performance by using an algorithm to
-  automatically search the entire space of possible configurations, but this
-  is not a practical option.
-  - The space of possible configurations is extremely large and there are
-    not yet any algorithms sophisticated enough to efficiently search this
-    space without human guidance.
-- Most automated search algorithms rely on a hand-designed _search space_ that
-  defines the set of configurations to search in, and these search spaces can
-  matter quite a bit.
-- The most effective way to maximize performance is to start with a simple
-  configuration and incrementally add features and make improvements while
-  building up insight into the problem.
-  - We use automated search algorithms in each round of tuning and
-    continually update our search spaces as our understanding grows.
-- As we explore, we will naturally find better and better configurations and
-  therefore our "best" model will continually improve.
-  - We call it a _launch_ when we update our best configuration (which may
-    or may not correspond to an actual launch of a production model).
-  - For each launch, we must make sure that the change is based on strong
-    evidence – not just random chance based on a lucky configuration – so
-    that we don't add unnecessary complexity to the training pipeline.
+**_概要：_** _从一个简单的配置开始，逐步进行改进，同时深入了解问题。确保任何改进都基于充分的证据，以避免添加不必要的复杂性。_
 
-At a high level, our incremental tuning strategy involves repeating the
-following four steps:
+- 我们的最终目标是找到一个最大化模型性能的配置。
+  - 在某些情况下，我们的目标是在固定的截止日期前最大化我们可以改善模型的程度（例如，参加竞赛提交）。
+  - 在其他情况下，我们希望不断改进模型（例如，持续改进在生产中使用的模型）。
+- 原则上，我们可以通过使用算法自动搜索可能配置的整个空间来最大化性能，但这并不是一个实际可行的选项。
+  - 可能配置的空间非常庞大，目前还没有足够复杂的算法能够在没有人类引导的情况下高效地搜索这个空间。
+- 大多数自动搜索算法依赖于手动设计的 _搜索空间_ ，它定义了要搜索的配置集，而这些搜索空间可能相当重要。
+- 最有效的方式是从一个简单的配置开始，逐步添加特性并进行改进，同时深入了解问题。
+  - 我们在每轮调整中使用自动搜索算法，并随着我们的理解增加而不断更新我们的搜索空间。
+- 随着我们的探索，我们自然会发现越来越好的配置，因此我们的 "最佳" 模型将不断改进。
+  - 当我们更新我们的最佳配置时（可能与实际生产模型的启动相对应，也可能不相对应），我们称之为 _启动_ 。
+  - 对于每次启动，我们必须确保变化是基于充分的证据而不仅仅是基于幸运配置的随机机会，以避免向训练流水线添加不必要的复杂性。
 
-1.  Identify an appropriately-scoped goal for the next round of experiments.
-2.  Design and run a set of experiments that makes progress towards this goal.
-3.  Learn what we can from the results.
-4.  Consider whether to launch the new best configuration.
+在高层次上，我们的渐进调整策略包括重复以下四个步骤：
 
-The remainder of this section will consider this strategy in much greater
-detail.
+1. 为下一轮实验确定一个适当范围的目标。
+2. 设计并运行一组实验，以实现向这个目标迈进。
+3. 从结果中学到我们能学到的东西。
+4. 考虑是否启动新的最佳配置。
+
+本节的其余部分将更详细地考虑这一策略。
 
 ### Exploration vs exploitation
 

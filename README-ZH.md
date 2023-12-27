@@ -216,7 +216,7 @@ _This is not an officially supported Google product._
 
 **_批量归一化与批量大小的交互_**
 
-<details><summary><em>[Click to expand]</em></summary>
+<details><summary><em>[点击展开]</em></summary>
 
 <br>
 

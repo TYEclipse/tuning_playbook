@@ -19,23 +19,23 @@ _This is not an officially supported Google product._
   - [Choosing the initial configuration 选择初始配置](#choosing-the-initial-configuration)
 - [A scientific approach to improving model performance 提升模型性能的科学方法](#a-scientific-approach-to-improving-model-performance)
   - [The incremental tuning strategy 渐进调整策略](#the-incremental-tuning-strategy)
-  - [Exploration vs exploitation](#exploration-vs-exploitation)
-  - [Choosing the goal for the next round of experiments](#choosing-the-goal-for-the-next-round-of-experiments)
-  - [Designing the next round of experiments](#Designing-the-next-round-of-experiments)
+  - [Exploration vs exploitation 探索与开发](#exploration-vs-exploitation)
+  - [Choosing the goal for the next round of experiments 选择下一轮实验的目标](#choosing-the-goal-for-the-next-round-of-experiments)
+- [Designing the next round of experiments 设计下一轮实验](#designing-the-next-round-of-experiments)
   - [Determining whether to adopt a training pipeline change or
     hyperparameter
-    configuration](#Determining-whether-to-adopt-a-training-pipeline-change-or-hyperparameter-configuration)
-  - [After exploration concludes](#After-exploration-concludes)
-- [Determining the number of steps for each training run](#Determining-the-number-of-steps-for-each-training-run)
-  - [Deciding how long to train when training is not compute-bound](#Deciding-how-long-to-train-when-training-is-not-compute-bound)
-  - [Deciding how long to train when training is compute-bound](#Deciding-how-long-to-train-when-training-is-compute-bound)
-- [Additional guidance for the training pipeline](#Additional-guidance-for-the-training-pipeline)
-  - [Optimizing the input pipeline](#Optimizing-the-input-pipeline)
-  - [Evaluating model performance](Evaluating-model-performance)
-  - [Saving checkpoints and retrospectively selecting the best checkpoint](#Saving-checkpoints-and-retrospectively-selecting-the-best-checkpoint)
-  - [Setting up experiment tracking](#Setting-up-experiment-tracking)
-  - [Batch normalization implementation details](#Batch-normalization-implementation-details)
-  - [Considerations for multi-host pipelines](#Considerations-for-multi-host-pipelines)
+    configuration](#determining-whether-to-adopt-a-training-pipeline-change-or-hyperparameter-configuration)
+  - [After exploration concludes](#after-exploration-concludes)
+- [Determining the number of steps for each training run](#determining-the-number-of-steps-for-each-training-run)
+  - [Deciding how long to train when training is not compute-bound](#deciding-how-long-to-train-when-training-is-not-compute-bound)
+  - [Deciding how long to train when training is compute-bound](#deciding-how-long-to-train-when-training-is-compute-bound)
+- [Additional guidance for the training pipeline](#additional-guidance-for-the-training-pipeline)
+  - [Optimizing the input pipeline](#optimizing-the-input-pipeline)
+  - [Evaluating model performance](#evaluating-model-performance)
+  - [Saving checkpoints and retrospectively selecting the best checkpoint](#saving-checkpoints-and-retrospectively-selecting-the-best-checkpoint)
+  - [Setting up experiment tracking](#setting-up-experiment-tracking)
+  - [Batch normalization implementation details](#batch-normalization-implementation-details)
+  - [Considerations for multi-host pipelines](#considerations-for-multi-host-pipelines)
 - [FAQs](#faqs)
 - [Acknowledgments](#acknowledgments)
 - [Citing](#citing)
@@ -280,60 +280,38 @@ _This is not an officially supported Google product._
 
 ### Exploration vs exploitation
 
-**_Summary:_** _Most of the time, our primary goal is to gain insight into the
-problem._
+**_探索与开发_**
 
-- Although one might think we would spend most of our time trying to maximize
-  performance on the validation set, in practice we spend the majority of our
-  time trying to gain insight into the problem, and comparatively little time
-  greedily focused on the validation error.
-  - In other words, we spend most of our time on "exploration" and only a
-    small amount on "exploitation".
-- In the long run, understanding the problem is critical if we want to
-  maximize our final performance. Prioritizing insight over short term gains
-  can help us:
-  - Avoid launching unnecessary changes that happened to be present in
-    well-performing runs merely through historical accident.
-  - Identify which hyperparameters the validation error is most sensitive
-    to, which hyperparameters interact the most and therefore need to be
-    re-tuned together, and which hyperparameters are relatively insensitive
-    to other changes and can therefore be fixed in future experiments.
-  - Suggest potential new features to try, such as new regularizers if
-    overfitting is an issue.
-  - Identify features that don't help and therefore can be removed, reducing
-    the complexity of future experiments.
-  - Recognize when improvements from hyperparameter tuning have likely
-    saturated.
-  - Narrow our search spaces around the optimal value to improve tuning
-    efficiency.
-- When we are eventually ready to be greedy, we can focus purely on the
-  validation error even if the experiments aren't maximally informative about
-  the structure of the tuning problem.
+**_概要：_** _大多数情况下，我们的主要目标是深入了解问题。_
+
+- 尽管人们可能认为我们会花费大部分时间尝试在验证集上最大化性能，但实际上我们花费大部分时间尝试深入了解问题，相对较少的时间贪婪地专注于验证错误。
+  - 换句话说，我们花费大部分时间在 "探索"，只有少量时间在 "开发"。
+- 从长远来看，如果我们想最大化最终性能，理解问题至关重要。优先考虑深入了解而不是短期收益可以帮助我们：
+  - 避免启动仅因历史偶然性而存在于表现良好运行中的不必要的更改。
+  - 确定验证错误最敏感的超参数，哪些超参数之间的交互最多，因此需要一起重新调整，哪些超参数相对不太敏感于其他变化，因此可以在将来的实验中固定。
+  - 提出尝试的潜在新特性，例如如果过拟合是一个问题，则尝试新的正则化器。
+  - 识别不起作用的特性，因此可以删除，减少未来实验的复杂性。
+  - 辨别超参数调整带来的改进何时可能已经饱和。
+  - 缩小围绕最佳值的搜索空间，以提高调整效率。
+- 当我们最终准备好贪心时，即使实验对调整问题的结构不是最大程度的信息，我们也可以纯粹关注验证错误。
 
 ### Choosing the goal for the next round of experiments
 
-**_Summary:_** _Each round of experiments should have a clear goal and be
-sufficiently narrow in scope that the experiments can actually make progress
-towards the goal._
+**_选择下一轮实验的目标_**
 
-- Each round of experiments should have a clear goal and be sufficiently
-  narrow in scope that the experiments can actually make progress towards the
-  goal: if we try to add multiple features or answer multiple questions at
-  once, we may not be able to disentangle the separate effects on the results.
-- Example goals include:
-  - Try a potential improvement to the pipeline (e.g. a new regularizer,
-    preprocessing choice, etc.).
-  - Understand the impact of a particular model hyperparameter (e.g. the
-    activation function)
-  - Greedily minimize validation error.
+**_概要：_** _每一轮实验都应该有明确的目标，并且范围足够狭窄，以便实验能够真正朝着目标取得进展。_
+
+- 每一轮实验都应该有明确的目标，并且范围足够狭窄，以便实验能够真正朝着目标取得进展：如果我们尝试一次性添加多个特性或回答多个问题，我们可能无法分离各自对结果的影响。
+- 示例目标包括：
+  - 尝试改进流程的潜在方法（例如新的正则化器、预处理选择等）。
+  - 了解特定模型超参数的影响（例如激活函数）。
+  - 贪婪地将验证错误最小化。
 
 ### Designing the next round of experiments
 
-**_Summary:_** _Identify which hyperparameters are scientific, nuisance, and
-fixed hyperparameters for the experimental goal. Create a sequence of studies to
-compare different values of the scientific hyperparameters while optimizing over
-the nuisance hyperparameters. Choose the search space of nuisance
-hyperparameters to balance resource costs with scientific value._
+**_设计下一轮实验_**
+
+**_概要：_** _确定实验目标的科学超参数、干扰超参数和固定超参数。创建一系列研究，比较科学超参数的不同值，同时优化干扰超参数。选择干扰超参数的搜索空间，以平衡资源成本和科学价值。_
 
 #### Identifying scientific, nuisance, and fixed hyperparameters
 

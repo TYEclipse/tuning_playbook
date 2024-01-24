@@ -21,7 +21,7 @@ _This is not an officially supported Google product._
   - [The incremental tuning strategy 渐进调整策略](#the-incremental-tuning-strategy)
   - [Exploration vs exploitation 探索与开发](#exploration-vs-exploitation)
   - [Choosing the goal for the next round of experiments 选择下一轮实验的目标](#choosing-the-goal-for-the-next-round-of-experiments)
-- [Designing the next round of experiments 设计下一轮实验](#designing-the-next-round-of-experiments)
+  - [Designing the next round of experiments 设计下一轮实验](#designing-the-next-round-of-experiments)
   - [Determining whether to adopt a training pipeline change or
     hyperparameter
     configuration](#determining-whether-to-adopt-a-training-pipeline-change-or-hyperparameter-configuration)
@@ -315,80 +315,30 @@ _This is not an officially supported Google product._
 
 #### Identifying scientific, nuisance, and fixed hyperparameters
 
-<details><summary><em>[Click to expand]</em></summary>
+**_确定科学、干扰和固定超参数_**
+
+<details><summary><em>[点击展开]</em></summary>
 
 <br>
 
-- For a given goal, all hyperparameters will be either **scientific
-  hyperparameters**, **nuisance hyperparameters**, or **fixed
-  hyperparameters**.
-  - Scientific hyperparameters are those whose effect on the model's
-    performance we're trying to measure.
-  - Nuisance hyperparameters are those that need to be optimized over in
-    order to fairly compare different values of the scientific
-    hyperparameters. This is similar to the statistical concept of
-    [nuisance parameters](https://en.wikipedia.org/wiki/Nuisance_parameter).
-  - Fixed hyperparameters will have their values fixed in the current round
-    of experiments. These are hyperparameters whose values do not need to
-    (or we do not want them to) change when comparing different values of
-    the scientific hyperparameters.
-    - By fixing certain hyperparameters for a set of experiments, we must
-      accept that conclusions derived from the experiments might not be
-      valid for other settings of the fixed hyperparameters. In other
-      words, fixed hyperparameters create caveats for any conclusions we
-      draw from the experiments.
-- For example, if our goal is to "determine whether a model with more hidden
-  layers will reduce validation error", then the number of hidden layers is a
-  scientific hyperparameter.
-  - The learning rate is a nuisance hyperparameter because we can only
-    fairly compare models with different numbers of hidden layers if the
-    learning rate is tuned separately for each number of layers (the optimal
-    learning rate generally depends on the model architecture).
-  - The activation function could be a fixed hyperparameter if we have
-    determined in prior experiments that the best choice of activation
-    function is not sensitive to model depth, or if we are willing to limit
-    our conclusions about the number of hidden layers to only cover this
-    specific choice of activation function. Alternatively, it could be a
-    nuisance parameter if we are prepared to tune it separately for each
-    number of hidden layers.
-- Whether a particular hyperparameter is a scientific hyperparameter, nuisance
-  hyperparameter, or fixed hyperparameter is not inherent to that
-  hyperparameter, but changes depending on the experimental goal.
-  - For example, the choice of activation function could be a scientific
-    hyperparameter (is ReLU or tanh a better choice for our problem?), a
-    nuisance hyperparameter (is the best 5-layer model better than the best
-    6-layer model when we allow several different possible activation
-    functions?), or a fixed hyperparameter (for ReLU nets, does adding batch
-    normalization in a particular position help?).
-- When designing a new round of experiments, we first identify the scientific
-  hyperparameters for our experimental goal.
-  - At this stage, we consider all other hyperparameters to be nuisance
-    hyperparameters.
-- Next, we convert some of the nuisance hyperparameters into fixed
-  hyperparameters.
-  - With limitless resources, we would leave all non-scientific
-    hyperparameters as nuisance hyperparameters so that the conclusions we
-    draw from our experiments are free from caveats about fixed
-    hyperparameter values.
-  - However, the more nuisance hyperparameters we attempt to tune, the
-    greater the risk we fail to tune them sufficiently well for each setting
-    of the scientific hyperparameters and end up reaching the wrong
-    conclusions from our experiments.
-    - As described
-      [below](#striking-a-balance-between-informative-and-affordable-experiments),
-      we could counter this risk by increasing the computational budget,
-      but often our maximum resource budget is less than would be needed
-      to tune over all non-scientific hyperparameters.
-  - We choose to convert a nuisance hyperparameter into a fixed
-    hyperparameter when, in our judgment, the caveats introduced by fixing
-    it are less burdensome than the cost of including it as a nuisance
-    hyperparameter.
-    - The more a given nuisance hyperparameter interacts with the
-      scientific hyperparameters, the more damaging it is to fix its
-      value. For example, the best value of the weight decay strength
-      typically depends on the model size, so comparing different model
-      sizes assuming a single specific value of the weight decay would not
-      be very insightful.
+- 针对特定目标，所有超参数都可以被划分为**科学超参数**、**干扰超参数**或**固定超参数**。
+  - 科学超参数是我们试图衡量其对模型性能影响的超参数。
+  - 干扰超参数是需要进行优化的超参数，以便公平比较科学超参数的不同值。这类似于统计概念中的[干扰参数](https://en.wikipedia.org/wiki/Nuisance_parameter)。
+  - 固定超参数在当前一轮实验中将保持其数值不变。这些是在比较科学超参数的不同值时，其数值不需要（或者我们不希望它们）改变的超参数。
+    - 通过为一组实验固定某些超参数，我们必须接受从这些实验中得出的结论可能对于固定超参数的其他设置无效。换句话说，固定超参数为我们从实验中得出的任何结论带来了注意事项。
+- 例如，如果我们的目标是“确定具有更多隐藏层的模型是否会降低验证误差”，那么隐藏层的数量就是一个科学超参数。
+  - 学习率是一个干扰超参数，因为只有在为每个隐藏层的数量单独调整学习率时，我们才能公平比较具有不同隐藏层数量的模型（通常最优学习率取决于模型架构）。
+  - 如果我们在先前的实验中确定激活函数的最佳选择不受模型深度影响，或者如果我们愿意限制关于隐藏层数量的结论仅涵盖这个特定的激活函数选择，那么激活函数可能是一个固定超参数。另一方面，如果我们准备为每个隐藏层的数量单独调整激活函数，那么它可能是一个干扰参数。
+- 一个特定的超参数是科学超参数、干扰超参数还是固定超参数，并不是超参数本身固有的属性，而是取决于实验目标。
+  - 例如，激活函数的选择可以是科学超参数（对于我们的问题，ReLU还是tanh更好？）、干扰超参数（当我们允许多种可能的激活函数时，最佳的5层模型是否比最佳的6层模型更好？）或固定超参数（对于ReLU网络，在特定位置添加批量归一化是否有帮助？）。
+- 在设计新一轮实验时，我们首先确定实验目标的科学超参数。
+  - 在这个阶段，我们将所有其他超参数视为干扰超参数。
+- 接下来，我们将其中一些干扰超参数转化为固定超参数。
+  - 在资源无限的情况下，我们可以将所有非科学超参数保持为干扰超参数，以确保我们从实验中得出的结论不受固定超参数值的限制。
+  - 然而，我们试图调整的干扰超参数越多，我们就越有可能无法为科学超参数的每个设置充分调整它们，最终可能从实验中得出错误的结论。
+    - 如[下文](#striking-a-balance-between-informative-and-affordable-experiments)所述，我们可以通过增加计算预算来应对这一风险，但通常我们的最大资源预算不足以调整所有非科学超参数。
+  - 当我们判断固定一个干扰超参数引入的注意事项比将其作为干扰超参数包含的成本更小的时候，我们选择将其转化为固定超参数。
+    - 一个给定的干扰超参数与科学超参数的交互越多，固定其值对实验的影响就越大。例如，权重衰减强度的最佳值通常取决于模型大小，因此假设在单一特定的权重衰减值下比较不同的模型大小可能不太有启发性。
 - Although the type we assign to each hyperparameter depends on the
   experimental goal, we have the following rules of thumb for certain
   categories of hyperparameters:
